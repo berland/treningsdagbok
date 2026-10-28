@@ -173,7 +173,10 @@ def create_app(config=None):
 
     def read_form(form):
         errors, values = [], {}
-        raw = {k: form.get(k, "").strip() for k in ("date", "what", "details", *FIELDS)}
+        raw = {
+            k: form.get(k, "").strip()
+            for k in ("date", "what", "details", "strava_id", *FIELDS)
+        }
         try:
             values["date"] = date.fromisoformat(raw["date"]).isoformat()
         except ValueError:
@@ -320,18 +323,27 @@ def create_app(config=None):
             values, raw, errors = read_form(request.form)
             if not errors:
                 db = get_db()
-                db.execute(
-                    "UPDATE sessions SET date=:date, what=:what, high=:high, "
-                    "moderate=:moderate, low=:low, strength=:strength, "
-                    "stretch=:stretch, details=:details, "
-                    "important=:important WHERE id=:id",
-                    {**values, "id": sid},
-                )
-                db.commit()
-                iso = date.fromisoformat(values["date"]).isocalendar()
-                return redirect(
-                    url_for("week_view", username=username, year=iso[0], week=iso[1])
-                )
+                # Clients that omit the field (not the browser form) keep the id
+                if "strava_id" not in request.form:
+                    values["strava_id"] = row["strava_id"]
+                try:
+                    db.execute(
+                        "UPDATE sessions SET date=:date, what=:what, high=:high, "
+                        "moderate=:moderate, low=:low, strength=:strength, "
+                        "stretch=:stretch, details=:details, "
+                        "important=:important, strava_id=:strava_id WHERE id=:id",
+                        {**values, "id": sid},
+                    )
+                except sqlite3.IntegrityError:
+                    errors.append("Strava-økta er allerede registrert.")
+                else:
+                    db.commit()
+                    iso = date.fromisoformat(values["date"]).isocalendar()
+                    return redirect(
+                        url_for(
+                            "week_view", username=username, year=iso[0], week=iso[1]
+                        )
+                    )
             return render_template(
                 "form.html",
                 user=user,
@@ -345,6 +357,7 @@ def create_app(config=None):
             "date": row["date"],
             "what": row["what"],
             "details": row["details"],
+            "strava_id": row["strava_id"] or "",
             **{f: fmt_duration_blank(row[f]) for f in FIELDS},
         }
         return render_template(

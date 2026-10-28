@@ -135,6 +135,20 @@ def test_strava_link_and_icon(client) -> None:
     html = client.get("/anna/uke/2024/1").get_data(as_text=True)
     assert "activities/123456" in html
 
+    assert 'value="123456"' in client.get(f"/anna/{sid}/endre").get_data(as_text=True)
+    edit = {"date": "2024-01-03", "what": "Ny"}
+    assert (
+        client.post(f"/anna/{sid}/endre", data={**edit, "strava_id": "9"}).status_code
+        == 400
+    )
+    assert (
+        client.post(f"/anna/{sid}/endre", data={**edit, "strava_id": "77"}).status_code
+        == 302
+    )
+    assert "activities/77" in client.get("/anna/uke/2024/1").get_data(as_text=True)
+    client.post(f"/anna/{sid}/endre", data={**edit, "strava_id": ""})
+    assert "activities/77" not in client.get("/anna/uke/2024/1").get_data(as_text=True)
+
 
 def test_migrates_old_database(tmp_path) -> None:
     path = tmp_path / "old.sqlite3"
