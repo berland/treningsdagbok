@@ -7,7 +7,7 @@ h2 { font-size: 1em; margin-top: 0; }
 .boxed ul { margin: 0; padding-left: 1.2em; }
 table { border-collapse: collapse; max-width: 100%; }
 th { text-align: left; background: #e6e6e6; }
-th, td { padding: 2px 8px; vertical-align: top; }
+th, td { padding: 2px 8px; vertical-align: top; border: 1px solid #fff; }
 td { background: #f5f5f5; }
 table.sessions td.details { white-space: pre-wrap; width: 50%; }
 table.sessions tfoot td { font-weight: bold; background: #e6e6e6; }
