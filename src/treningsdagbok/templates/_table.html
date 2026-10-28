@@ -1,7 +1,7 @@
 {% macro table(rows, totals, user, date_fn) %}
 <table class="sessions">
   <thead>
-    <tr><th>Dato</th><th>Hva</th>{% for f in FIELDS %}<th>{{ LABELS[f] }}</th>{% endfor %}<th>Detaljer</th><th>Sum</th></tr>
+    <tr><th>Dato</th><th>Hva</th>{% for f in FIELDS %}<th>{{ LABELS[f] }}</th>{% endfor %}<th>Detaljer</th><th>Sum</th><th></th></tr>
   </thead>
   <tbody>
   {% for r in rows %}
@@ -11,11 +11,12 @@
       {% for f in FIELDS %}<td>{{ r[f]|durblank }}</td>{% endfor %}
       <td class="details">{{ r.details }}</td>
       <td>{{ row_total(r)|dur }}</td>
+      <td class="strava">{% if r.strava_id %}<a href="https://www.strava.com/activities/{{ r.strava_id }}" target="_blank" rel="noopener" title="Åpne i Strava"><img src="{{ url_for('static', filename='strava.svg') }}" alt="Strava" width="16" height="16"></a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
   <tfoot>
-    <tr><td>Sum:</td><td></td>{% for f in FIELDS %}<td>{{ totals[f]|dur }}</td>{% endfor %}<td></td><td>{{ totals.total|dur }}</td></tr>
+    <tr><td>Sum:</td><td></td>{% for f in FIELDS %}<td>{{ totals[f]|dur }}</td>{% endfor %}<td></td><td>{{ totals.total|dur }}</td><td></td></tr>
   </tfoot>
 </table>
 {% endmacro %}

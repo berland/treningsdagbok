@@ -36,6 +36,16 @@ MONTHS = [
 ]
 USERNAME_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
 
+# schema.sql is the baseline (user_version 0). Each entry here is applied once,
+# in order, and the position (1-based) is stored in PRAGMA user_version.
+MIGRATIONS = [
+    """
+    ALTER TABLE sessions ADD COLUMN strava_id INTEGER;
+    CREATE UNIQUE INDEX sessions_strava_id ON sessions(strava_id)
+      WHERE strava_id IS NOT NULL;
+    """,
+]
+
 
 def parse_duration(text):
     """'1:30' -> 90, '1:30:00' -> 90, '45' -> 45 (minutes), '' -> 0."""
@@ -49,6 +59,16 @@ def parse_duration(text):
         return int(text)
     msg = f"Ugyldig tid: {text!r} (bruk t:mm eller minutter)"
     raise ValueError(msg)
+
+
+def parse_strava_id(text):
+    """'12345' -> (12345, None), '' -> (None, None), junk -> (None, error)."""
+    text = (text or "").strip()
+    if not text:
+        return None, None
+    if re.fullmatch(r"\d{1,18}", text) and int(text) > 0:
+        return int(text), None
+    return None, "Ugyldig Strava-id."
 
 
 def fmt_duration(minutes) -> str:
@@ -95,6 +115,12 @@ def create_app(config=None):
         db.executescript(
             resources.files(__package__).joinpath("schema.sql").read_text()
         )
+        version = db.execute("PRAGMA user_version").fetchone()[0]
+        for number, migration in enumerate(MIGRATIONS, start=1):
+            if number > version:
+                db.executescript(
+                    f"BEGIN; {migration} PRAGMA user_version = {number}; COMMIT;"
+                )
         db.commit()
 
     app.init_db = init_db
@@ -160,6 +186,9 @@ def create_app(config=None):
         values["what"] = raw["what"]
         values["details"] = form.get("details", "").strip()
         values["important"] = 1 if form.get("important") else 0
+        values["strava_id"], strava_error = parse_strava_id(form.get("strava_id"))
+        if strava_error:
+            errors.append(strava_error)
         return values, raw, errors
 
     # ---- routes --------------------------------------------------------
@@ -237,15 +266,22 @@ def create_app(config=None):
             values, raw, errors = read_form(request.form)
             if not errors:
                 db = get_db()
-                db.execute(
-                    "INSERT INTO sessions (username, date, what, high, "
-                    "moderate, low, strength, stretch, details, important) "
-                    "VALUES (:username, :date, :what, :high, :moderate, :low, "
-                    ":strength, :stretch, :details, :important)",
-                    {**values, "username": username},
-                )
-                db.commit()
-                return redirect(url_for("user_home", username=username))
+                try:
+                    cur = db.execute(
+                        "INSERT INTO sessions (username, date, what, high, "
+                        "moderate, low, strength, stretch, details, important, "
+                        "strava_id) VALUES (:username, :date, :what, :high, "
+                        ":moderate, :low, :strength, :stretch, :details, "
+                        ":important, :strava_id)",
+                        {**values, "username": username},
+                    )
+                except sqlite3.IntegrityError:
+                    errors.append("Strava-økta er allerede registrert.")
+                else:
+                    db.commit()
+                    response = redirect(url_for("user_home", username=username))
+                    response.headers["X-Session-Id"] = str(cur.lastrowid)
+                    return response
             return render_template(
                 "form.html",
                 user=user,
@@ -320,6 +356,23 @@ def create_app(config=None):
             mode="edit",
             sid=sid,
         )
+
+    @app.post("/<username>/<int:sid>/strava")
+    def set_strava_id(username, sid):
+        user_or_404(username)
+        get_session_or_404(username, sid)
+        strava_id, error = parse_strava_id(request.form.get("strava_id"))
+        if error or strava_id is None:
+            abort(400)
+        db = get_db()
+        try:
+            db.execute(
+                "UPDATE sessions SET strava_id = ? WHERE id = ?", (strava_id, sid)
+            )
+        except sqlite3.IntegrityError:
+            abort(409)
+        db.commit()
+        return "", 204
 
     @app.post("/<username>/<int:sid>/slett")
     def delete_session(username, sid):

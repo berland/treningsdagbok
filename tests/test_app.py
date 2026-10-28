@@ -1,3 +1,6 @@
+import sqlite3
+from importlib.resources import files
+
 import pytest
 
 from treningsdagbok import create_app, fmt_duration, parse_duration
@@ -100,3 +103,52 @@ def test_unknown_user_and_pages(client) -> None:
 
 def test_empty_chart(client) -> None:
     assert client.get("/anna/graf/uke.svg").status_code == 200
+
+
+def test_strava_link_and_icon(client) -> None:
+    resp = add(client, strava_id="123456")
+    assert resp.status_code == 302
+    sid = resp.headers["X-Session-Id"]
+    html = client.get("/anna/uke/2024/1").get_data(as_text=True)
+    assert "https://www.strava.com/activities/123456" in html
+
+    assert add(client, date="2024-01-05", strava_id="123456").status_code == 400
+    assert add(client, date="2024-01-05", strava_id="abc").status_code == 400
+
+    other = add(client, date="2024-01-05")
+    other_sid = other.headers["X-Session-Id"]
+    assert (
+        client.post(f"/anna/{other_sid}/strava", data={"strava_id": "9"}).status_code
+        == 204
+    )
+    assert (
+        client.post(
+            f"/anna/{other_sid}/strava", data={"strava_id": "123456"}
+        ).status_code
+        == 409
+    )
+    assert (
+        client.post(f"/anna/{sid}/strava", data={"strava_id": "x"}).status_code == 400
+    )
+
+    client.post(f"/anna/{sid}/endre", data={"date": "2024-01-03", "what": "Ny"})
+    html = client.get("/anna/uke/2024/1").get_data(as_text=True)
+    assert "activities/123456" in html
+
+
+def test_migrates_old_database(tmp_path) -> None:
+    path = tmp_path / "old.sqlite3"
+    db = sqlite3.connect(path)
+    db.executescript(
+        files("treningsdagbok").joinpath("schema.sql").read_text()
+        + "INSERT INTO users VALUES ('anna', 'Anna');"
+        "INSERT INTO sessions (username, date) VALUES ('anna', '2024-01-03');"
+    )
+    db.close()
+    app = create_app({"DATABASE": str(path), "TESTING": True})
+    with app.app_context():
+        app.init_db()
+        app.init_db()
+        db = sqlite3.connect(path)
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert db.execute("SELECT strava_id FROM sessions").fetchone() == (None,)
