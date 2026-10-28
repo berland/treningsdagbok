@@ -1,0 +1,69 @@
+[project]
+name = "treningsdagbok"
+version = "0.1"
+requires-python = ">=3.12"
+dependencies = ["flask>=3"]
+
+[project.optional-dependencies]
+prod = ["gunicorn"]
+test = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+"A",
+"AIR",
+"ARG",
+"ASYNC",
+"BLE",
+"DJ",
+"EM",
+"ERA",
+"EXE",
+"FA",
+"FAST",
+"FBT",
+"FIX",
+"FLY",
+"G",
+"I",
+"ICN",
+"INT",
+"ISC",
+"LOG",
+"N",
+"NPY",
+"PD",
+"PERF",
+"PGH",
+"PIE",
+"PLC",
+"PLE",
+"PLW",
+"PYI",
+"Q",
+"RET",
+"RSE",
+"SIM",
+"SLF",
+"SLOT",
+"T",
+"TC",
+"TD",
+"TID",
+"TRY",
+"W",
+"YTT"
+]
+
+[tool.setuptools.package-data]
+treningsdagbok = ["schema.sql", "templates/*.html", "static/*"]

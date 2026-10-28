@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% from "_table.html" import table %}
+{% block title %}{{ title }} – {{ user.full_name }}{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+<h2>{{ title }}
+  [<a href="{{ prev }}">&lt;&lt;</a>] [<a href="{{ next }}">&gt;&gt;</a>]
+</h2>
+{{ table(rows, totals, user, date_fmt) }}
+{% endblock %}

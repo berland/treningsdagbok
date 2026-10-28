@@ -1,0 +1,102 @@
+import pytest
+
+from treningsdagbok import create_app, fmt_duration, parse_duration
+
+
+@pytest.fixture
+def client(tmp_path):
+    app = create_app({"DATABASE": str(tmp_path / "t.sqlite3"), "TESTING": True})
+    with app.app_context():
+        app.init_db()
+    runner = app.test_cli_runner()
+    assert runner.invoke(args=["add-user", "anna", "Anna Nordmann"]).exit_code == 0
+    return app.test_client()
+
+
+def add(client, **kw):
+    data = {
+        "date": "2024-01-03",
+        "what": "Løping",
+        "high": "0:20",
+        "moderate": "1:00",
+        "details": "<b>x</b>",
+        **kw,
+    }
+    return client.post("/anna/ny", data=data)
+
+
+def test_parse_duration() -> None:
+    assert parse_duration("1:30") == 90
+    assert parse_duration("1:30:00") == 90
+    assert parse_duration("45") == 45
+    assert parse_duration("") == 0
+    with pytest.raises(ValueError):
+        parse_duration("abc")
+    assert fmt_duration(65) == "1:05"
+
+
+def test_add_view_sums_and_escaping(client) -> None:
+    assert add(client).status_code == 302
+    add(client, date="2024-01-04", high="0:10", moderate="")
+    html = client.get("/anna/uke/2024/1").get_data(as_text=True)
+    assert "&lt;b&gt;x&lt;/b&gt;" in html
+    assert "<b>x</b>" not in html
+    assert "1:20" in html  # first session total
+    assert "1:30" in html  # week total
+    assert "2024-01-03" not in client.get("/anna/uke/2024/2").get_data(as_text=True)
+
+
+def test_iso_week_across_year_boundary(client) -> None:
+    add(client, date="2024-12-30")  # ISO week 1 of 2025
+    assert "Løping" in client.get("/anna/uke/2025/1").get_data(as_text=True)
+    assert "Løping" not in client.get("/anna/uke/2024/52").get_data(as_text=True)
+    assert "Løping" in client.get("/anna/maaned/2024/12").get_data(as_text=True)
+
+
+def test_invalid_input_rejected(client) -> None:
+    r = add(client, date="nope", high="x")
+    assert r.status_code == 400
+    assert "Ugyldig dato" in r.get_data(as_text=True)
+
+
+def test_edit_and_delete(client) -> None:
+    add(client)
+    assert (
+        client.post(
+            "/anna/1/endre",
+            data={"date": "2024-01-03", "what": "Sykling", "important": "1"},
+        ).status_code
+        == 302
+    )
+    html = client.get("/anna/uke/2024/1").get_data(as_text=True)
+    assert "Sykling" in html
+    assert 'class="viktig"' in html
+    assert client.post("/anna/1/slett").status_code == 302
+    assert client.get("/anna/1/endre").status_code == 404
+
+
+def test_search_is_literal_and_injection_safe(client) -> None:
+    add(client, what="100% hard")
+    add(client, what="easy")
+    html = client.get("/anna/sok?hva=100%25").get_data(as_text=True)
+    assert "1 treff" in html
+    assert "0 treff" in client.get("/anna/sok?hva=' OR 1=1 --").get_data(as_text=True)
+
+
+def test_unknown_user_and_pages(client) -> None:
+    assert client.get("/nobody/").status_code == 404
+    add(client)
+    for url in (
+        "/",
+        "/anna/",
+        "/anna/sammendrag",
+        "/anna/sammendrag?view=uke",
+        "/anna/sok",
+        "/anna/graf/maaned.svg",
+        "/anna/graf/uke.svg",
+    ):
+        assert client.get(url, follow_redirects=True).status_code == 200, url
+
+
+def test_empty_chart(client) -> None:
+    assert client.get("/anna/graf/uke.svg").status_code == 200

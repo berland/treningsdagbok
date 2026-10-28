@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_table.html" import table %}
+{% block title %}Søk – {{ user.full_name }}{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+<h1>Søk etter økter</h1>
+<form method="get">
+  <table class="form">
+    <tr><td><label for="aar">År</label></td><td><input id="aar" name="aar" value="{{ q.aar }}" size="6"></td></tr>
+    <tr><td><label for="hva">Hva</label></td><td><input id="hva" name="hva" value="{{ q.hva }}"></td></tr>
+    <tr><td><label for="detaljer">Detaljer</label></td><td><input id="detaljer" name="detaljer" value="{{ q.detaljer }}"></td></tr>
+    <tr><td></td><td><button type="submit">Søk</button></td></tr>
+  </table>
+</form>
+{% if searched %}
+  <p>{{ rows|length }} treff.</p>
+  {% if rows %}{{ table(rows, totals, user, shortdate) }}{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% macro table(rows, totals, user, date_fn) %}
+<table class="sessions">
+  <thead>
+    <tr><th>Dato</th><th>Hva</th>{% for f in FIELDS %}<th>{{ LABELS[f] }}</th>{% endfor %}<th>Detaljer</th><th>Sum</th></tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr{% if r.important %} class="viktig"{% endif %}>
+      <td><a href="{{ url_for('edit_session', username=user.username, sid=r.id) }}">{{ date_fn(r.date) }}</a></td>
+      <td>{{ r.what }}</td>
+      {% for f in FIELDS %}<td>{{ r[f]|durblank }}</td>{% endfor %}
+      <td class="details">{{ r.details }}</td>
+      <td>{{ row_total(r)|dur }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td>Sum:</td><td></td>{% for f in FIELDS %}<td>{{ totals[f]|dur }}</td>{% endfor %}<td></td><td>{{ totals.total|dur }}</td></tr>
+  </tfoot>
+</table>
+{% endmacro %}

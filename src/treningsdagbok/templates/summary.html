@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Sammendrag – {{ user.full_name }}{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+{% macro rowcells(t) %}
+  <td>{{ t.count }}</td>{% for f in FIELDS %}<td>{{ t[f]|dur }}</td>{% endfor %}<td>{{ t.total|dur }}</td>
+{% endmacro %}
+{% macro head(first) %}
+  <tr><th>{{ first }}</th><th>Økter</th>{% for f in FIELDS %}<th>{{ LABELS[f] }}</th>{% endfor %}<th>Sum</th></tr>
+{% endmacro %}
+
+{% if view == "uke" %}
+<h1>Ukesammendrag {{ year }}</h1>
+<p>År:
+  {% for y in years %}{% if y == year %}<b>{{ y }}</b>{% else %}<a href="{{ url_for('summary', username=user.username, view='uke', aar=y) }}">{{ y }}</a>{% endif %} {% endfor %}
+</p>
+<img src="{{ url_for('chart', username=user.username, kind='uke') }}" alt="Timer per uke">
+<table class="sessions">
+  <thead>{{ head("Uke") }}</thead>
+  <tbody>{% for k, t in data.items() %}
+    <tr><td><a href="{{ url_for('week_view', username=user.username, year=year, week=k) }}">{{ k }}</a></td>{{ rowcells(t) }}</tr>
+  {% endfor %}</tbody>
+  <tfoot>{% for y, t in overall.items() %}<tr><td>{{ y }}</td>{{ rowcells(t) }}</tr>{% endfor %}</tfoot>
+</table>
+{% else %}
+<h1>Månedssammendrag</h1>
+<img src="{{ url_for('chart', username=user.username, kind='maaned') }}" alt="Timer per måned">
+<table class="sessions">
+  <thead>{{ head("Måned") }}</thead>
+  <tbody>{% for k, t in data.items() %}
+    <tr><td><a href="{{ url_for('month_view', username=user.username, year=k[0], month=k[1]) }}">{{ labels[k] }}</a></td>{{ rowcells(t) }}</tr>
+  {% endfor %}</tbody>
+</table>
+<h2>Per år</h2>
+<table class="sessions">
+  <thead>{{ head("År") }}</thead>
+  <tbody>{% for y, t in overall.items() %}<tr><td>{{ y }}</td>{{ rowcells(t) }}</tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Treningsdagbok</h1>
+<ul class="boxed">
+{% for u in users %}
+  <li><a href="{{ url_for('user_home', username=u.username) }}">{{ u.full_name }}</a></li>
+{% else %}
+  <li>Ingen brukere ennå. Legg til med <code>flask add-user</code>.</li>
+{% endfor %}
+</ul>
+{% endblock %}

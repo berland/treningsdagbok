@@ -1,0 +1,16 @@
+<header class="top">
+  <div>
+    <h1><a href="{{ url_for('index') }}">Treningsdagbok</a></h1>
+    <h2>{{ user.full_name }}</h2>
+  </div>
+  <nav class="boxed">
+    <ul>
+      <li><a href="{{ url_for('new_session', username=user.username) }}">Legg inn økt</a></li>
+      <li><a href="{{ url_for('search', username=user.username) }}">Søk etter økter</a></li>
+      <li><a href="{{ url_for('user_home', username=user.username, view='uke') }}">Ukevisning</a></li>
+      <li><a href="{{ url_for('user_home', username=user.username, view='maaned') }}">Månedsvisning</a></li>
+      <li><a href="{{ url_for('summary', username=user.username, view='maaned') }}">Månedssammendrag</a></li>
+      <li><a href="{{ url_for('summary', username=user.username, view='uke') }}">Ukesammendrag</a></li>
+    </ul>
+  </nav>
+</header>
