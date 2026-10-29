@@ -84,6 +84,11 @@ def short_date(d) -> str:
     return f"{DAYS[d.weekday()]}, {d.day}. {MONTHS[d.month - 1]}"
 
 
+def long_date(d) -> str:
+    d = date.fromisoformat(d) if isinstance(d, str) else d
+    return f"{short_date(d)} {d.year}"
+
+
 def create_app(config=None):
     app = Flask(__name__)
     app.config["DATABASE"] = os.environ.get("TRENING_DB", "trening.sqlite3")
@@ -97,7 +102,11 @@ def create_app(config=None):
     app.jinja_env.filters["durblank"] = fmt_duration_blank
     app.jinja_env.filters["shortdate"] = short_date
     app.jinja_env.globals.update(
-        shortdate=short_date, FIELDS=FIELDS, LABELS=LABELS, MONTHS=MONTHS
+        shortdate=short_date,
+        longdate=long_date,
+        FIELDS=FIELDS,
+        LABELS=LABELS,
+        MONTHS=MONTHS,
     )
 
     def get_db():
