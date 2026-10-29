@@ -6,7 +6,7 @@
 {% for e in errors %}<p class="error">{{ e }}</p>{% endfor %}
 <form method="post">
   <table class="form">
-    <tr><td><label for="date">Dato</label></td><td><input id="date" type="date" name="date" value="{{ s.date }}" required></td></tr>
+    <tr><td><label for="date">Dato</label></td><td><input id="date" type="text" name="date" value="{{ s.date }}" placeholder="ÅÅÅÅ-MM-DD" pattern="\d{4}-\d{2}-\d{2}" size="10" required></td></tr>
     <tr><td><label for="what">Hva</label></td><td><input id="what" type="text" name="what" maxlength="200" value="{{ s.what }}"></td></tr>
     {% for f, label in [("high", "Høy intensitet"), ("moderate", "Moderat intensitet"), ("low", "Lav intensitet"), ("strength", "Styrketrening"), ("stretch", "Tøying")] %}
     <tr><td><label for="{{ f }}">{{ label }}</label></td><td><input id="{{ f }}" type="text" name="{{ f }}" value="{{ s[f] }}" placeholder="t:mm" size="8"></td></tr>
