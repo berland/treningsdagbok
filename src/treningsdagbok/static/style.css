@@ -16,3 +16,4 @@ table.form td { background: none; }
 .error { color: #b00; }
 button.danger { color: #b00; margin-top: 1em; }
 img { max-width: 100%; }
+a { text-decoration: none; }
