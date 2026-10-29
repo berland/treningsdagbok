@@ -6,7 +6,7 @@
   <tbody>
   {% for r in rows %}
     <tr{% if r.important %} class="viktig"{% endif %}>
-      <td><a href="{{ url_for('edit_session', username=user.username, sid=r.id) }}">{{ date_fn(r.date) }}</a></td>
+      <td>{% if can_write %}<a href="{{ url_for('edit_session', username=user.username, sid=r.id) }}">{{ date_fn(r.date) }}</a>{% else %}{{ date_fn(r.date) }}{% endif %}</td>
       <td>{{ r.what }}</td>
       {% for f in FIELDS %}<td>{{ r[f]|durblank }}</td>{% endfor %}
       <td class="details">{{ r.details }}</td>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_table.html" import table %}
+{% from "_table.html" import table with context %}
 {% block title %}{{ title }} – {{ user.full_name }}{% endblock %}
 {% block body %}
 {% include "_nav.html" %}

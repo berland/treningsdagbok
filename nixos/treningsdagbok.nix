@@ -35,6 +35,15 @@ in
       type = lib.types.str;
       default = "/run/treningsdagbok/gunicorn.sock";
     };
+    restrictWrites = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Only let the HTTP-auth user (set up in nginx, e.g. basicAuthFile) write
+        to the diary with the same username. Without HTTP auth everything
+        becomes read-only. Set to false to allow anyone to write.
+      '';
+    };
     backup = {
       enable = lib.mkOption { type = lib.types.bool; default = true; };
       directory = lib.mkOption {
@@ -89,6 +98,8 @@ in
       environment = {
         TRENING_DB = "/var/lib/treningsdagbok/trening.sqlite3";
         PYTHONPATH = "${cfg.src}/src";
+      } // lib.optionalAttrs cfg.restrictWrites {
+        TRENING_AUTH_HEADER = "X-Remote-User";
       };
       serviceConfig = {
         User = "treningsdagbok";
@@ -114,6 +125,10 @@ in
         locations."/" = {
           proxyPass = "http://unix:${cfg.socket}";
           recommendedProxySettings = true;
+          # Overrides any client-supplied header of the same name
+          extraConfig = lib.optionalString cfg.restrictWrites ''
+            proxy_set_header X-Remote-User $remote_user;
+          '';
         };
       };
     };

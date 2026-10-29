@@ -166,3 +166,50 @@ def test_migrates_old_database(tmp_path) -> None:
         db = sqlite3.connect(path)
         assert db.execute("PRAGMA user_version").fetchone()[0] == 1
         assert db.execute("SELECT strava_id FROM sessions").fetchone() == (None,)
+
+
+def test_only_owner_can_write(tmp_path) -> None:
+    app = create_app(
+        {
+            "DATABASE": str(tmp_path / "t.sqlite3"),
+            "TESTING": True,
+            "AUTH_HEADER": "X-Remote-User",
+        }
+    )
+    with app.app_context():
+        app.init_db()
+    runner = app.test_cli_runner()
+    runner.invoke(args=["add-user", "anna", "Anna"])
+    runner.invoke(args=["add-user", "bob", "Bob"])
+    client = app.test_client()
+    as_anna = {"X-Remote-User": "anna"}
+    form = {"date": "2024-01-03", "what": "Løping", "low": "1:00"}
+
+    sid = client.post("/anna/ny", data=form, headers=as_anna).headers["X-Session-Id"]
+    assert (
+        client.post("/anna/ny", data=form, headers={"X-Remote-User": "bob"}).status_code
+        == 403
+    )
+    assert client.post("/anna/ny", data=form).status_code == 403
+    for method, url in (
+        ("get", "/anna/ny"),
+        ("get", f"/anna/{sid}/endre"),
+        ("post", f"/anna/{sid}/endre"),
+        ("post", f"/anna/{sid}/slett"),
+        ("post", f"/anna/{sid}/strava"),
+    ):
+        resp = getattr(client, method)(url, headers={"X-Remote-User": "bob"})
+        assert resp.status_code == 403, url
+
+    page = "/anna/uke/2024/1"
+    assert "Legg inn" in client.get(page, headers=as_anna).get_data(as_text=True)
+    other = client.get(page, headers={"X-Remote-User": "bob"}).get_data(as_text=True)
+    assert "Løping" in other
+    assert "Legg inn" not in other
+    assert "/endre" not in other
+
+    resp = client.get("/", headers=as_anna)
+    assert resp.status_code == 302
+    assert resp.headers["Location"].endswith("/anna/")
+    assert client.get("/?alle=1", headers=as_anna).status_code == 200
+    assert client.get("/").status_code == 200

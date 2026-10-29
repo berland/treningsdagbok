@@ -87,6 +87,9 @@ def short_date(d) -> str:
 def create_app(config=None):
     app = Flask(__name__)
     app.config["DATABASE"] = os.environ.get("TRENING_DB", "trening.sqlite3")
+    # Name of a request header set by the reverse proxy to the HTTP-auth user.
+    # When set, only that user may write to the diary with the same username.
+    app.config["AUTH_HEADER"] = os.environ.get("TRENING_AUTH_HEADER")
     if config:
         app.config.update(config)
 
@@ -135,6 +138,22 @@ def create_app(config=None):
         if row is None:
             abort(404)
         return row
+
+    def remote_user():
+        header = app.config["AUTH_HEADER"]
+        return request.headers.get(header) if header else None
+
+    def can_write(username):
+        return not app.config["AUTH_HEADER"] or remote_user() == username
+
+    def require_owner(username) -> None:
+        if not can_write(username):
+            abort(403)
+
+    @app.context_processor
+    def inject_write_access():
+        username = (request.view_args or {}).get("username")
+        return {"can_write": username is not None and can_write(username)}
 
     def sessions_between(username, start, end):
         """Sessions with start <= date < end (ISO date strings)."""
@@ -197,6 +216,17 @@ def create_app(config=None):
     # ---- routes --------------------------------------------------------
     @app.route("/")
     def index():
+        me = remote_user()
+        if (
+            me
+            and "alle" not in request.args
+            and (
+                get_db()
+                .execute("SELECT 1 FROM users WHERE username = ?", (me,))
+                .fetchone()
+            )
+        ):
+            return redirect(url_for("user_home", username=me))
         users = get_db().execute("SELECT * FROM users ORDER BY full_name").fetchall()
         return render_template("index.html", users=users)
 
@@ -264,6 +294,7 @@ def create_app(config=None):
 
     @app.route("/<username>/ny", methods=["GET", "POST"])
     def new_session(username):
+        require_owner(username)
         user = user_or_404(username)
         if request.method == "POST":
             values, raw, errors = read_form(request.form)
@@ -317,6 +348,7 @@ def create_app(config=None):
 
     @app.route("/<username>/<int:sid>/endre", methods=["GET", "POST"])
     def edit_session(username, sid):
+        require_owner(username)
         user = user_or_404(username)
         row = get_session_or_404(username, sid)
         if request.method == "POST":
@@ -372,6 +404,7 @@ def create_app(config=None):
 
     @app.post("/<username>/<int:sid>/strava")
     def set_strava_id(username, sid):
+        require_owner(username)
         user_or_404(username)
         get_session_or_404(username, sid)
         strava_id, error = parse_strava_id(request.form.get("strava_id"))
@@ -389,6 +422,7 @@ def create_app(config=None):
 
     @app.post("/<username>/<int:sid>/slett")
     def delete_session(username, sid):
+        require_owner(username)
         user_or_404(username)
         get_session_or_404(username, sid)
         db = get_db()

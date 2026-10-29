@@ -5,12 +5,13 @@
   </div>
   <nav class="boxed">
     <ul>
-      <li><a href="{{ url_for('new_session', username=user.username) }}">Legg inn økt</a></li>
+      {% if can_write %}<li><a href="{{ url_for('new_session', username=user.username) }}">Legg inn økt</a></li>{% endif %}
       <li><a href="{{ url_for('search', username=user.username) }}">Søk etter økter</a></li>
       <li><a href="{{ url_for('user_home', username=user.username, view='uke') }}">Ukevisning</a></li>
       <li><a href="{{ url_for('user_home', username=user.username, view='maaned') }}">Månedsvisning</a></li>
       <li><a href="{{ url_for('summary', username=user.username, view='maaned') }}">Månedssammendrag</a></li>
       <li><a href="{{ url_for('summary', username=user.username, view='uke') }}">Ukesammendrag</a></li>
+      <li><a href="{{ url_for('index', alle=1) }}">Alle brukere</a></li>
     </ul>
   </nav>
 </header>
