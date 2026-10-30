@@ -548,10 +548,9 @@ def create_app(config=None):
             data = group(rows, lambda d: f"{d.year}-{d.month:02d}")
         else:
             data = group(rows, lambda d: "%d-W%02d" % d.isocalendar()[:2])
-        svg = charts.line_chart(
+        svg = charts.bar_chart(
             list(data),
-            {LABELS[f]: [data[k][f] / 60 for k in data] for f in FIELDS}
-            | {"Totalt": [data[k]["total"] / 60 for k in data]},
+            {LABELS[f]: [data[k][f] / 60 for k in data] for f in FIELDS},
         )
         return Response(svg, mimetype="image/svg+xml")
 
